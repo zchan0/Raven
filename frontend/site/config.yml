@@ -2,15 +2,15 @@
 # 站点配置文件
 
 # 站点基本信息
-title: "Munin Journal"
-subtitle: "记录生活点滴"
-author: "Your Name"
-description: "一个简洁的日记空间"
+title: "Munin"
+subtitle: "Cc's Journal"
+author: "Cc"
+description: "日记习惯养成中"
 
 # 站点 URL（GitHub Pages 地址）
 # 格式：https://username.github.io/repo-name/
 # 如果使用自定义域名，直接填写域名
-url: "https://yourusername.github.io/raven"
+url: "https://zchan0.github.io/raven"
 
 # 时间轴配置
 timeline:
