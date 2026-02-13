@@ -1,0 +1,57 @@
+name: Publish Journal
+
+# 当带有 'journal' 标签的 Issue 被创建或更新时触发
+on:
+  issues:
+    types: [opened, edited, labeled]
+
+permissions:
+  contents: write
+  issues: write
+
+jobs:
+  convert:
+    runs-on: ubuntu-latest
+    
+    # 只处理带有 'journal' 标签的 Issue
+    if: contains(github.event.issue.labels.*.name, 'journal')
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      
+      - name: Install dependencies
+        run: |
+          pip install requests pyyaml
+      
+      - name: Convert Issue to Markdown
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_OWNER: ${{ github.repository_owner }}
+          GITHUB_REPO: ${{ github.event.repository.name }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          ARTICLE_DIR: content/posts  # 可根据需要调整
+          JOURNAL_LABEL: journal
+          PUBLISHED_LABEL: published
+          JOURNAL_TZ: Asia/Shanghai
+        run: |
+          python scripts/issue_to_md.py
+      
+      - name: Commit and push changes
+        run: |
+          git config --local user.name "github-actions[bot]"
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git add content/
+          if git diff --staged --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "Publish: Issue #${{ github.event.issue.number }}"
+            git push
+          fi
