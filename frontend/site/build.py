@@ -400,7 +400,8 @@ class SiteBuilder:
             title=self.config.get('title', 'Munin Journal'),
             content=index_content,
             body_class='page-index',
-            base_path='' if page == 1 else '../'
+            base_path='' if page == 1 else '../',
+            current_year=str(datetime.now().year)
         )
 
         return full_html
@@ -529,7 +530,8 @@ class SiteBuilder:
             title=page_title,
             content=post_content,
             body_class='page-post',
-            base_path='../'
+            base_path='../',
+            current_year=str(datetime.now().year)
         )
 
         return full_html
