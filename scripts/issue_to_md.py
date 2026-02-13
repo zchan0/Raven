@@ -106,10 +106,11 @@ def issue_to_markdown(issue: dict, journal_label: str, timezone: ZoneInfo) -> tu
     frontmatter_yaml = yaml.dump(frontmatter, allow_unicode=True, sort_keys=False)
     markdown = f"---\n{frontmatter_yaml}---\n\n{body}\n"
 
-    # 生成文件路径：YYYY/MMdd.md (简化层级结构)
+    # 生成文件路径：yyyy/mm/dd.md
     year = created_at.strftime("%Y")
-    month_day = created_at.strftime("%m%d")
-    file_path = f"{year}/{month_day}.md"
+    month = created_at.strftime("%m")
+    day = created_at.strftime("%d")
+    file_path = f"{year}/{month}/{day}.md"
 
     return file_path, markdown
 
