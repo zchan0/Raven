@@ -264,9 +264,8 @@ class SiteBuilder:
         self.posts: List[Post] = []
         self.base_dir = Path(__file__).parent
         # content 在仓库根目录，不是 frontend/content
-        # Raven 结构: frontend/site/build.py
-        # site -> parent: frontend -> parent: Raven (根目录)
-        self.content_dir = self.base_dir.parent.parent / 'content'
+        # base_dir: site -> parent: frontend -> parent.parent: Munin
+        self.content_dir = self.base_dir.parent.parent.parent / 'content'
         self.output_dir = self.base_dir.parent / 'dist'
         self.templates_dir = self.base_dir / 'templates'
 
