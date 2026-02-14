@@ -263,9 +263,20 @@ class SiteBuilder:
         self.config = config
         self.posts: List[Post] = []
         self.base_dir = Path(__file__).parent
-        # content 在仓库根目录，不是 frontend/content
-        # base_dir: site -> parent: frontend -> parent.parent: Munin
-        self.content_dir = self.base_dir.parent.parent.parent / 'content'
+        # 自动检测 content 目录位置
+        # Raven 结构: frontend/site/ -> ../../content
+        # Munin 开发: munin/frontend/site/ -> ../../../content
+        raven_content = self.base_dir.parent.parent / 'content'
+        munin_content = self.base_dir.parent.parent.parent / 'content'
+        
+        if raven_content.exists():
+            self.content_dir = raven_content
+        elif munin_content.exists():
+            self.content_dir = munin_content
+        else:
+            # 默认使用 Raven 结构
+            self.content_dir = raven_content
+            
         self.output_dir = self.base_dir.parent / 'dist'
         self.templates_dir = self.base_dir / 'templates'
 
