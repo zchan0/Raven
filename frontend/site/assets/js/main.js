@@ -11,9 +11,15 @@
     const themeIcon = themeToggle?.querySelector('.theme-icon');
     
     if (themeToggle) {
-        // 从 localStorage 读取主题偏好
-        const savedTheme = localStorage.getItem('theme');
-        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        // 获取当前实际主题状态
+        function getCurrentTheme() {
+            const savedTheme = localStorage.getItem('theme');
+            if (savedTheme) {
+                return savedTheme;
+            }
+            // 跟随系统
+            return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        }
         
         // 应用主题
         function applyTheme(theme) {
@@ -26,12 +32,9 @@
             }
         }
         
-        // 初始化主题
-        if (savedTheme === 'dark' || (!savedTheme && prefersDark)) {
-            applyTheme('dark');
-        } else {
-            applyTheme('light');
-        }
+        // 初始化主题（页面加载时）
+        const currentTheme = getCurrentTheme();
+        applyTheme(currentTheme);
         
         // 点击切换
         themeToggle.addEventListener('click', function() {
@@ -41,7 +44,7 @@
             localStorage.setItem('theme', newTheme);
         });
         
-        // 监听系统主题变化
+        // 监听系统主题变化（仅当用户未手动设置时）
         window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
             if (!localStorage.getItem('theme')) {
                 applyTheme(e.matches ? 'dark' : 'light');
