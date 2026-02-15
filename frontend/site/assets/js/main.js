@@ -7,13 +7,13 @@
     'use strict';
 
     // ========== 主题切换功能 ==========
-    const themeToggle = document.getElementById('themeToggle');
-    const themeIcon = themeToggle?.querySelector('.theme-icon');
+    var themeToggle = document.getElementById('themeToggle');
+    var themeIcon = themeToggle ? themeToggle.querySelector('.theme-icon') : null;
     
     if (themeToggle) {
         // 获取当前实际主题状态
         function getCurrentTheme() {
-            const savedTheme = localStorage.getItem('theme');
+            var savedTheme = localStorage.getItem('theme');
             if (savedTheme) {
                 return savedTheme;
             }
@@ -33,22 +33,15 @@
         }
         
         // 初始化主题（页面加载时）
-        const currentTheme = getCurrentTheme();
+        var currentTheme = getCurrentTheme();
         applyTheme(currentTheme);
         
         // 点击切换
         themeToggle.addEventListener('click', function() {
-            const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
-            const newTheme = isDark ? 'light' : 'dark';
+            var isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+            var newTheme = isDark ? 'light' : 'dark';
             applyTheme(newTheme);
             localStorage.setItem('theme', newTheme);
-        });
-        
-        // 监听系统主题变化（仅当用户未手动设置时）
-        window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
-            if (!localStorage.getItem('theme')) {
-                applyTheme(e.matches ? 'dark' : 'light');
-            }
         });
     }
 
