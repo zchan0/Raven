@@ -6,7 +6,50 @@
 (function() {
     'use strict';
 
-    // 回到顶部按钮
+    // ========== 主题切换功能 ==========
+    const themeToggle = document.getElementById('themeToggle');
+    const themeIcon = themeToggle?.querySelector('.theme-icon');
+    
+    if (themeToggle) {
+        // 从 localStorage 读取主题偏好
+        const savedTheme = localStorage.getItem('theme');
+        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        
+        // 应用主题
+        function applyTheme(theme) {
+            if (theme === 'dark') {
+                document.documentElement.setAttribute('data-theme', 'dark');
+                if (themeIcon) themeIcon.textContent = '☀️';
+            } else {
+                document.documentElement.removeAttribute('data-theme');
+                if (themeIcon) themeIcon.textContent = '🌙';
+            }
+        }
+        
+        // 初始化主题
+        if (savedTheme === 'dark' || (!savedTheme && prefersDark)) {
+            applyTheme('dark');
+        } else {
+            applyTheme('light');
+        }
+        
+        // 点击切换
+        themeToggle.addEventListener('click', function() {
+            const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+            const newTheme = isDark ? 'light' : 'dark';
+            applyTheme(newTheme);
+            localStorage.setItem('theme', newTheme);
+        });
+        
+        // 监听系统主题变化
+        window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
+            if (!localStorage.getItem('theme')) {
+                applyTheme(e.matches ? 'dark' : 'light');
+            }
+        });
+    }
+
+    // ========== 回到顶部按钮 ==========
     const backToTopBtn = document.getElementById('backToTop');
     
     if (backToTopBtn) {
@@ -67,28 +110,6 @@
             img.removeAttribute('loading');
         });
     }
-
-    // 预留：主题切换功能（可扩展）
-    // 如需添加暗黑模式，取消下面代码的注释并完善样式
-    /*
-    const themeToggle = document.getElementById('themeToggle');
-    
-    if (themeToggle) {
-        // 从 localStorage 读取主题偏好
-        const savedTheme = localStorage.getItem('theme');
-        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-        
-        if (savedTheme === 'dark' || (!savedTheme && prefersDark)) {
-            document.documentElement.classList.add('dark-theme');
-        }
-        
-        themeToggle.addEventListener('click', function() {
-            document.documentElement.classList.toggle('dark-theme');
-            const isDark = document.documentElement.classList.contains('dark-theme');
-            localStorage.setItem('theme', isDark ? 'dark' : 'light');
-        });
-    }
-    */
 
     // 预留：搜索功能（可扩展）
     /*
