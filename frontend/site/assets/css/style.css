@@ -261,6 +261,8 @@ a {
     justify-content: center;
     width: 36px;
     height: 36px;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
 }
 
 .theme-toggle:hover {

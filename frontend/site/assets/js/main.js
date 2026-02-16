@@ -36,12 +36,19 @@
         var currentTheme = getCurrentTheme();
         applyTheme(currentTheme);
         
-        // 点击切换
-        themeToggle.addEventListener('click', function() {
+        // 点击切换（同时支持鼠标和触摸）
+        function toggleTheme(e) {
+            if (e) e.preventDefault();
             var isDark = document.documentElement.getAttribute('data-theme') === 'dark';
             var newTheme = isDark ? 'light' : 'dark';
             applyTheme(newTheme);
             localStorage.setItem('theme', newTheme);
+        }
+        
+        themeToggle.addEventListener('click', toggleTheme);
+        themeToggle.addEventListener('touchend', function(e) {
+            e.preventDefault();
+            toggleTheme();
         });
     }
 
