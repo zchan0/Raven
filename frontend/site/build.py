@@ -146,7 +146,7 @@ class MarkdownParser:
             alt = match.group(1)
             src = match.group(2)
             protected_images.append((alt, src))
-            return f"<!--IMAGE_{len(protected_images)-1}-->"
+            return f"§§IMAGE{len(protected_images)-1}§§"
         html = cls.IMAGE_RE.sub(protect_image, html)
 
         # 保护链接语法: [text](url)
@@ -155,7 +155,7 @@ class MarkdownParser:
             text = match.group(1)
             href = match.group(2)
             protected_links.append((text, href))
-            return f"<!--LINK_{len(protected_links)-1}-->"
+            return f"§§LINK{len(protected_links)-1}§§"
         html = cls.LINK_RE.sub(protect_link, html)
 
         # 粗体
@@ -170,12 +170,12 @@ class MarkdownParser:
             if not src.startswith(('http://', 'https://', '/')):
                 src = '../images/' + src
             img_html = f'<img src="{src}" alt="{alt}" loading="lazy">'
-            html = html.replace(f"<!--IMAGE_{i}-->", img_html)
+            html = html.replace(f"§§IMAGE{i}§§", img_html)
 
         # 恢复并处理链接
         for i, (text, href) in enumerate(protected_links):
             link_html = f'<a href="{href}" target="_blank" rel="noopener">{text}</a>'
-            html = html.replace(f"<!--LINK_{i}-->", link_html)
+            html = html.replace(f"§§LINK{i}§§", link_html)
 
         # 分隔线
         html = cls.HR_RE.sub('<hr>', html)
