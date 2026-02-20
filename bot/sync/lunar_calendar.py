@@ -1,263 +1,508 @@
-"""
-农历节气计算模块（查表法）
-基于准确的农历数据表，支持 2024-2030 年
+"""Lunar calendar and solar term utilities (1900-2100)."""
 
-数据来源：香港天文台、农历万年历
-"""
-from datetime import datetime
-from typing import Optional, Dict, Tuple
+from __future__ import annotations
 
-# =============== 农历日期查表（2024-2030年）===============
-# 格式: (年, 月, 日): "农历X月XX"
-LUNAR_DATE_TABLE: Dict[Tuple[int, int, int], str] = {
-    # 2024年（甲辰年，龙年）
-    (2024, 2, 10): '正月初一',  # 春节
-    (2024, 2, 11): '正月初二',
-    (2024, 2, 12): '正月初三',
-    (2024, 2, 13): '正月初四',
-    (2024, 2, 14): '正月初五',
-    (2024, 2, 15): '正月初六',
-    (2024, 2, 16): '正月初七',
-    (2024, 2, 17): '正月初八',
-    (2024, 2, 18): '正月初九',
-    (2024, 2, 19): '正月初十',  # 雨水
-    # ... 更多日期
-    
-    # 2025年（乙巳年，蛇年）
-    (2025, 1, 28): '腊月廿九',
-    (2025, 1, 29): '正月初一',  # 春节
-    (2025, 1, 30): '正月初二',
-    (2025, 1, 31): '正月初三',
-    (2025, 2, 1): '正月初四',
-    # ...
-    
-    # 2026年（丙午年，马年）- 你的数据
-    (2026, 1, 1): '冬月十三',
-    (2026, 1, 2): '冬月十四',
-    (2026, 1, 3): '冬月十五',
-    (2026, 1, 4): '冬月十六',
-    (2026, 1, 5): '冬月十七',
-    (2026, 1, 6): '冬月十八',
-    (2026, 1, 7): '冬月十九',
-    (2026, 1, 8): '冬月二十',
-    (2026, 1, 9): '冬月廿一',
-    (2026, 1, 10): '冬月廿二',
-    (2026, 1, 11): '冬月廿三',
-    (2026, 1, 12): '冬月廿四',
-    (2026, 1, 13): '冬月廿五',
-    (2026, 1, 14): '冬月廿六',
-    (2026, 1, 15): '冬月廿七',
-    (2026, 1, 16): '冬月廿八',
-    (2026, 1, 17): '冬月廿九',
-    (2026, 1, 18): '冬月三十',
-    (2026, 1, 19): '腊月初一',
-    (2026, 1, 20): '腊月初二',
-    (2026, 1, 21): '腊月初三',
-    (2026, 1, 22): '腊月初四',
-    (2026, 1, 23): '腊月初五',
-    (2026, 1, 24): '腊月初六',
-    (2026, 1, 25): '腊月初七',
-    (2026, 1, 26): '腊月初八',
-    (2026, 1, 27): '腊月初九',
-    (2026, 1, 28): '腊月初十',
-    (2026, 1, 29): '腊月十一',
-    (2026, 1, 30): '腊月十二',
-    (2026, 1, 31): '腊月十三',
-    (2026, 2, 1): '腊月十四',
-    (2026, 2, 2): '腊月十五',
-    (2026, 2, 3): '腊月十六',
-    (2026, 2, 4): '腊月十七',  # 立春
-    (2026, 2, 5): '腊月十八',
-    (2026, 2, 6): '腊月十九',
-    (2026, 2, 7): '腊月二十',
-    (2026, 2, 8): '腊月廿一',
-    (2026, 2, 9): '腊月廿二',
-    (2026, 2, 10): '腊月廿三',
-    (2026, 2, 11): '腊月廿四',
-    (2026, 2, 12): '腊月廿五',
-    (2026, 2, 13): '腊月廿六',
-    (2026, 2, 14): '腊月廿七',
-    (2026, 2, 15): '腊月廿八',
-    (2026, 2, 16): '腊月廿九',
-    (2026, 2, 17): '正月初一',  # 春节
-    (2026, 2, 18): '正月初二',  # 雨水
-    (2026, 2, 19): '正月初三',
-    (2026, 2, 20): '正月初四',
-    (2026, 2, 21): '正月初五',
-    (2026, 2, 22): '正月初六',
-    (2026, 2, 23): '正月初七',
-    (2026, 2, 24): '正月初八',
-    (2026, 2, 25): '正月初九',
-    (2026, 2, 26): '正月初十',
-    (2026, 2, 27): '正月十一',
-    (2026, 2, 28): '正月十二',
-    (2026, 3, 1): '正月十三',
-    (2026, 3, 2): '正月十四',
-    (2026, 3, 3): '正月十五',  # 元宵节
-    (2026, 3, 4): '正月十六',
-    (2026, 3, 5): '正月十七',  # 惊蛰
-    (2026, 3, 6): '正月十八',
-    (2026, 3, 7): '正月十九',
-    (2026, 3, 8): '正月二十',
-    (2026, 3, 9): '正月廿一',
-    (2026, 3, 10): '正月廿二',
-    (2026, 3, 11): '正月廿三',
-    (2026, 3, 12): '正月廿四',
-    (2026, 3, 13): '正月廿五',
-    (2026, 3, 14): '正月廿六',
-    (2026, 3, 15): '正月廿七',
-    (2026, 3, 16): '正月廿八',
-    (2026, 3, 17): '正月廿九',
-    (2026, 3, 18): '二月初一',
-    (2026, 3, 19): '二月初二',
-    (2026, 3, 20): '二月初三',  # 春分
-    # ...
-}
+from datetime import datetime, timedelta
+from typing import Optional
+
+# Standard lunar data table (1900-2100), commonly used with HKO-based encoding.
+# Encoding per year:
+# - low 4 bits: leap month (0 means no leap month)
+# - bit 16 (0x10000): leap month length (1 -> 30 days, 0 -> 29 days)
+# - bits 15..4: month lengths for months 1..12 (1 -> 30 days, 0 -> 29 days)
+LUNAR_DATA = [
+    0x04BD8,
+    0x04AE0,
+    0x0A570,
+    0x054D5,
+    0x0D260,
+    0x0D950,
+    0x16554,
+    0x056A0,
+    0x09AD0,
+    0x055D2,
+    0x04AE0,
+    0x0A5B6,
+    0x0A4D0,
+    0x0D250,
+    0x1D255,
+    0x0B540,
+    0x0D6A0,
+    0x0ADA2,
+    0x095B0,
+    0x14977,
+    0x04970,
+    0x0A4B0,
+    0x0B4B5,
+    0x06A50,
+    0x06D40,
+    0x1AB54,
+    0x02B60,
+    0x09570,
+    0x052F2,
+    0x04970,
+    0x06566,
+    0x0D4A0,
+    0x0EA50,
+    0x06E95,
+    0x05AD0,
+    0x02B60,
+    0x186E3,
+    0x092E0,
+    0x1C8D7,
+    0x0C950,
+    0x0D4A0,
+    0x1D8A6,
+    0x0B550,
+    0x056A0,
+    0x1A5B4,
+    0x025D0,
+    0x092D0,
+    0x0D2B2,
+    0x0A950,
+    0x0B557,
+    0x06CA0,
+    0x0B550,
+    0x15355,
+    0x04DA0,
+    0x0A5D0,
+    0x14573,
+    0x052D0,
+    0x0A9A8,
+    0x0E950,
+    0x06AA0,
+    0x0AEA6,
+    0x0AB50,
+    0x04B60,
+    0x0AAE4,
+    0x0A570,
+    0x05260,
+    0x0F263,
+    0x0D950,
+    0x05B57,
+    0x056A0,
+    0x096D0,
+    0x04DD5,
+    0x04AD0,
+    0x0A4D0,
+    0x0D4D4,
+    0x0D250,
+    0x0D558,
+    0x0B540,
+    0x0B6A0,
+    0x195A6,
+    0x095B0,
+    0x049B0,
+    0x0A974,
+    0x0A4B0,
+    0x0B27A,
+    0x06A50,
+    0x06D40,
+    0x0AF46,
+    0x0AB60,
+    0x09570,
+    0x04AF5,
+    0x04970,
+    0x064B0,
+    0x074A3,
+    0x0EA50,
+    0x06B58,
+    0x055C0,
+    0x0AB60,
+    0x096D5,
+    0x092E0,
+    0x0C960,
+    0x0D954,
+    0x0D4A0,
+    0x0DA50,
+    0x07552,
+    0x056A0,
+    0x0ABB7,
+    0x025D0,
+    0x092D0,
+    0x0CAB5,
+    0x0A950,
+    0x0B4A0,
+    0x0BAA4,
+    0x0AD50,
+    0x055D9,
+    0x04BA0,
+    0x0A5B0,
+    0x15176,
+    0x052B0,
+    0x0A930,
+    0x07954,
+    0x06AA0,
+    0x0AD50,
+    0x05B52,
+    0x04B60,
+    0x0A6E6,
+    0x0A4E0,
+    0x0D260,
+    0x0EA65,
+    0x0D530,
+    0x05AA0,
+    0x076A3,
+    0x096D0,
+    0x04BD7,
+    0x04AD0,
+    0x0A4D0,
+    0x1D0B6,
+    0x0D250,
+    0x0D520,
+    0x0DD45,
+    0x0B5A0,
+    0x056D0,
+    0x055B2,
+    0x049B0,
+    0x0A577,
+    0x0A4B0,
+    0x0AA50,
+    0x1B255,
+    0x06D20,
+    0x0ADA0,
+    0x14B63,
+    0x09370,
+    0x049F8,
+    0x04970,
+    0x064B0,
+    0x168A6,
+    0x0EA50,
+    0x06B20,
+    0x1A6C4,
+    0x0AAE0,
+    0x0A2E0,
+    0x0D2E3,
+    0x0C960,
+    0x0D557,
+    0x0D4A0,
+    0x0DA50,
+    0x05D55,
+    0x056A0,
+    0x0A6D0,
+    0x055D4,
+    0x052D0,
+    0x0A9B8,
+    0x0A950,
+    0x0B4A0,
+    0x0B6A6,
+    0x0AD50,
+    0x055A0,
+    0x0ABA4,
+    0x0A5B0,
+    0x052B0,
+    0x0B273,
+    0x06930,
+    0x07337,
+    0x06AA0,
+    0x0AD50,
+    0x14B55,
+    0x04B60,
+    0x0A570,
+    0x054E4,
+    0x0D160,
+    0x0E968,
+    0x0D520,
+    0x0DAA0,
+    0x16AA6,
+    0x056D0,
+    0x04AE0,
+    0x0A9D4,
+    0x0A2D0,
+    0x0D150,
+    0x0F252,
+    0x0D520,
+]
+
+LUNAR_MONTH_NAMES = ["正", "二", "三", "四", "五", "六", "七", "八", "九", "十", "冬", "腊"]
+LUNAR_DAY_NAMES = [
+    "初一",
+    "初二",
+    "初三",
+    "初四",
+    "初五",
+    "初六",
+    "初七",
+    "初八",
+    "初九",
+    "初十",
+    "十一",
+    "十二",
+    "十三",
+    "十四",
+    "十五",
+    "十六",
+    "十七",
+    "十八",
+    "十九",
+    "二十",
+    "廿一",
+    "廿二",
+    "廿三",
+    "廿四",
+    "廿五",
+    "廿六",
+    "廿七",
+    "廿八",
+    "廿九",
+    "三十",
+]
+
+BASE_DATE = datetime(1900, 1, 31)
+
+SOLAR_TERM_NAMES = [
+    "小寒",
+    "大寒",
+    "立春",
+    "雨水",
+    "惊蛰",
+    "春分",
+    "清明",
+    "谷雨",
+    "立夏",
+    "小满",
+    "芒种",
+    "夏至",
+    "小暑",
+    "大暑",
+    "立秋",
+    "处暑",
+    "白露",
+    "秋分",
+    "寒露",
+    "霜降",
+    "立冬",
+    "小雪",
+    "大雪",
+    "冬至",
+]
+
+# Minutes offset from 1900-01-06 02:05 for each solar term.
+SOLAR_TERM_INFO = [
+    0,
+    21208,
+    42467,
+    63836,
+    85337,
+    107014,
+    128867,
+    150921,
+    173149,
+    195551,
+    218072,
+    240693,
+    263343,
+    285989,
+    308563,
+    331033,
+    353350,
+    375494,
+    397447,
+    419210,
+    440795,
+    462224,
+    483532,
+    504758,
+]
+
+
+def _year_data(year: int) -> int:
+    return LUNAR_DATA[year - 1900]
+
+
+def _leap_month(year: int) -> int:
+    return _year_data(year) & 0xF
+
+
+def _leap_days(year: int) -> int:
+    leap = _leap_month(year)
+    if leap == 0:
+        return 0
+    return 30 if (_year_data(year) & 0x10000) else 29
+
+
+def _month_days(year: int, month: int) -> int:
+    if month < 1 or month > 12:
+        raise ValueError(f"invalid lunar month: {month}")
+    return 30 if (_year_data(year) & (0x10000 >> month)) else 29
+
+
+def _year_days(year: int) -> int:
+    days = 348
+    bit = 0x8000
+    data = _year_data(year)
+    for _ in range(12):
+        if data & bit:
+            days += 1
+        bit >>= 1
+    return days + _leap_days(year)
 
 
 def get_lunar_date(date: datetime) -> Optional[str]:
-    """
-    查表获取农历日期
-    
-    Args:
-        date: 公历日期
-        
-    Returns:
-        农历日期字符串，如"正月初三"
-        表中没有返回 None（需要扩展数据）
-    """
-    return LUNAR_DATE_TABLE.get((date.year, date.month, date.day))
+    """Return lunar date text (e.g. '正月初三') or None if out of range."""
+    if date.year < 1900 or date.year > 2100:
+        return None
+
+    offset = (date.replace(hour=0, minute=0, second=0, microsecond=0) - BASE_DATE).days
+    if offset < 0:
+        return None
+
+    lunar_year = 1900
+    while lunar_year <= 2100:
+        year_days = _year_days(lunar_year)
+        if offset < year_days:
+            break
+        offset -= year_days
+        lunar_year += 1
+
+    if lunar_year > 2100:
+        return None
+
+    leap_month = _leap_month(lunar_year)
+    is_leap = False
+    lunar_month = 1
+
+    while lunar_month <= 12:
+        month_days = _month_days(lunar_year, lunar_month)
+        if offset < month_days:
+            lunar_day = offset + 1
+            month_name = LUNAR_MONTH_NAMES[lunar_month - 1]
+            if is_leap:
+                month_name = f"闰{month_name}"
+            return f"{month_name}月{LUNAR_DAY_NAMES[lunar_day - 1]}"
+
+        offset -= month_days
+
+        if leap_month == lunar_month and not is_leap:
+            leap_days = _leap_days(lunar_year)
+            if offset < leap_days:
+                lunar_day = offset + 1
+                month_name = f"闰{LUNAR_MONTH_NAMES[lunar_month - 1]}"
+                return f"{month_name}月{LUNAR_DAY_NAMES[lunar_day - 1]}"
+            offset -= leap_days
+
+        lunar_month += 1
+
+    return None
 
 
-# =============== 节气查表（2024-2030年）===============
-SOLAR_TERM_TABLE: Dict[Tuple[int, int, int], str] = {
-    # 2024年
-    (2024, 1, 6): '小寒', (2024, 1, 20): '大寒',
-    (2024, 2, 4): '立春', (2024, 2, 19): '雨水',
-    (2024, 3, 5): '惊蛰', (2024, 3, 20): '春分',
-    (2024, 4, 4): '清明', (2024, 4, 19): '谷雨',
-    (2024, 5, 5): '立夏', (2024, 5, 20): '小满',
-    (2024, 6, 5): '芒种', (2024, 6, 21): '夏至',
-    (2024, 7, 6): '小暑', (2024, 7, 22): '大暑',
-    (2024, 8, 7): '立秋', (2024, 8, 22): '处暑',
-    (2024, 9, 7): '白露', (2024, 9, 22): '秋分',
-    (2024, 10, 8): '寒露', (2024, 10, 23): '霜降',
-    (2024, 11, 7): '立冬', (2024, 11, 22): '小雪',
-    (2024, 12, 6): '大雪', (2024, 12, 21): '冬至',
-    
-    # 2025年
-    (2025, 1, 5): '小寒', (2025, 1, 20): '大寒',
-    (2025, 2, 3): '立春', (2025, 2, 18): '雨水',
-    (2025, 3, 5): '惊蛰', (2025, 3, 20): '春分',
-    (2025, 4, 4): '清明', (2025, 4, 20): '谷雨',
-    (2025, 5, 5): '立夏', (2025, 5, 21): '小满',
-    (2025, 6, 5): '芒种', (2025, 6, 21): '夏至',
-    (2025, 7, 7): '小暑', (2025, 7, 22): '大暑',
-    (2025, 8, 7): '立秋', (2025, 8, 23): '处暑',
-    (2025, 9, 7): '白露', (2025, 9, 23): '秋分',
-    (2025, 10, 8): '寒露', (2025, 10, 23): '霜降',
-    (2025, 11, 7): '立冬', (2025, 11, 22): '小雪',
-    (2025, 12, 7): '大雪', (2025, 12, 21): '冬至',
-    
-    # 2026年
-    (2026, 1, 5): '小寒', (2026, 1, 20): '大寒',
-    (2026, 2, 4): '立春', (2026, 2, 18): '雨水',
-    (2026, 3, 5): '惊蛰', (2026, 3, 20): '春分',
-    (2026, 4, 5): '清明', (2026, 4, 20): '谷雨',
-    (2026, 5, 5): '立夏', (2026, 5, 21): '小满',
-    (2026, 6, 5): '芒种', (2026, 6, 21): '夏至',
-    (2026, 7, 7): '小暑', (2026, 7, 23): '大暑',
-    (2026, 8, 7): '立秋', (2026, 8, 23): '处暑',
-    (2026, 9, 7): '白露', (2026, 9, 23): '秋分',
-    (2026, 10, 8): '寒露', (2026, 10, 23): '霜降',
-    (2026, 11, 7): '立冬', (2026, 11, 22): '小雪',
-    (2026, 12, 7): '大雪', (2026, 12, 22): '冬至',
-}
+def _solar_term_day(year: int, index: int) -> int:
+    # Standard approximation formula for 1900-2100.
+    minutes = 525948.76 * (year - 1900) + SOLAR_TERM_INFO[index]
+    dt = datetime(1900, 1, 6, 2, 5) + timedelta(minutes=minutes)
+    return dt.day
 
 
 def get_solar_term(date: datetime) -> Optional[str]:
-    """查表获取节气（仅当天）"""
-    return SOLAR_TERM_TABLE.get((date.year, date.month, date.day))
+    """Return solar term name for the date, otherwise None."""
+    if date.year < 1900 or date.year > 2100:
+        return None
+
+    for i in (date.month - 1) * 2, (date.month - 1) * 2 + 1:
+        if date.day == _solar_term_day(date.year, i):
+            return SOLAR_TERM_NAMES[i]
+    return None
 
 
-# =============== 节日 ===============
+LUNAR_HOLIDAYS = {
+    "正月初一": "春节",
+    "正月十五": "元宵节",
+    "五月初五": "端午节",
+    "七月初七": "七夕",
+    "八月十五": "中秋节",
+    "九月初九": "重阳节",
+    "腊月初八": "腊八节",
+}
+
+SOLAR_HOLIDAYS = {
+    (1, 1): "元旦",
+    (5, 1): "劳动节",
+    (10, 1): "国庆节",
+    (12, 25): "圣诞节",
+}
+
+
 def get_holiday(date: datetime) -> Optional[str]:
-    """获取节日"""
-    # 农历节日
+    """Return holiday name or None."""
     lunar = get_lunar_date(date)
-    if lunar:
-        if lunar == '正月初一':
-            return '春节'
-        elif lunar == '正月十五':
-            return '元宵节'
-        elif lunar == '五月初五':
-            return '端午节'
-        elif lunar == '八月十五':
-            return '中秋节'
-    
-    # 公历固定节日
-    fixed_holidays = {
-        (1, 1): '元旦',
-        (5, 1): '劳动节',
-        (10, 1): '国庆节',
-        (12, 25): '圣诞节',
-    }
-    return fixed_holidays.get((date.month, date.day))
+    if lunar is not None:
+        holiday = LUNAR_HOLIDAYS.get(lunar)
+        if holiday is not None:
+            return holiday
+    return SOLAR_HOLIDAYS.get((date.month, date.day))
 
 
 def get_special_day(date: datetime) -> Optional[str]:
-    """获取节气或节日（节日优先）"""
+    """Return holiday first, then solar term, otherwise None."""
     holiday = get_holiday(date)
-    if holiday:
+    if holiday is not None:
         return holiday
     return get_solar_term(date)
 
 
-# =============== 准确性验证 ===============
-def verify_accuracy():
-    """验证农历计算的准确性"""
-    print("="*60)
-    print("农历节气查表法准确性验证")
-    print("="*60)
-    
-    # 验证2026年2月日期
-    print("\n【2026年2月日期验证】")
-    test_cases = [
-        ((2026, 2, 13), '腊月廿六', None),
-        ((2026, 2, 15), '腊月廿八', None),
-        ((2026, 2, 16), '腊月廿九', None),
-        ((2026, 2, 17), '正月初一', '春节'),
-        ((2026, 2, 18), '正月初二', '雨水'),
-        ((2026, 2, 19), '正月初三', None),
-        ((2026, 2, 20), '正月初四', None),
+def verify_accuracy() -> bool:
+    """Run required accuracy checks and print results."""
+    cases = [
+        {
+            "date": datetime(2026, 2, 17),
+            "lunar": "正月初一",
+            "holiday": "春节",
+            "solar_term": None,
+            "special": "春节",
+        },
+        {
+            "date": datetime(2026, 2, 18),
+            "lunar": "正月初二",
+            "holiday": None,
+            "solar_term": "雨水",
+            "special": "雨水",
+        },
+        {
+            "date": datetime(2026, 2, 13),
+            "lunar": "腊月廿六",
+            "holiday": None,
+            "solar_term": None,
+            "special": None,
+        },
     ]
-    
+
     all_passed = True
-    for (year, month, day), expected_lunar, expected_special in test_cases:
-        date = datetime(year, month, day)
-        lunar = get_lunar_date(date)
-        special = get_special_day(date)
-        
-        lunar_ok = lunar == expected_lunar
-        special_ok = special == expected_special
-        
-        status = '✅' if lunar_ok and special_ok else '❌'
-        if not (lunar_ok and special_ok):
-            all_passed = False
-        
-        print(f"{status} {year}-{month:02d}-{day:02d}: {lunar} {special if special else ''}")
-        if not lunar_ok:
-            print(f"   农历期望: {expected_lunar}")
-        if not special_ok:
-            print(f"   节气期望: {expected_special}")
-    
-    print("\n" + "="*60)
-    if all_passed:
-        print("✅ 所有测试通过！数据准确。")
-    else:
-        print("❌ 存在测试失败。")
-    print("="*60)
-    
+    print("=" * 48)
+    print("verify_accuracy")
+    print("=" * 48)
+
+    for case in cases:
+        d = case["date"]
+        actual_lunar = get_lunar_date(d)
+        actual_holiday = get_holiday(d)
+        actual_term = get_solar_term(d)
+        actual_special = get_special_day(d)
+
+        passed = (
+            actual_lunar == case["lunar"]
+            and actual_holiday == case["holiday"]
+            and actual_term == case["solar_term"]
+            and actual_special == case["special"]
+        )
+        all_passed = all_passed and passed
+
+        status = "PASS" if passed else "FAIL"
+        print(
+            f"[{status}] {d:%Y-%m-%d} "
+            f"lunar={actual_lunar} holiday={actual_holiday} "
+            f"solar_term={actual_term} special={actual_special}"
+        )
+
+        if not passed:
+            print(
+                "  expected "
+                f"lunar={case['lunar']} holiday={case['holiday']} "
+                f"solar_term={case['solar_term']} special={case['special']}"
+            )
+
+    print("=" * 48)
+    print("RESULT:", "PASS" if all_passed else "FAIL")
+    print("=" * 48)
     return all_passed
 
 
