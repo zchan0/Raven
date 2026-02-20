@@ -84,6 +84,7 @@ class BotHandlers:
             CommandHandler("end", self.handle_end),
             CommandHandler("start", self.handle_start),
             CommandHandler("help", self.handle_help),
+            CommandHandler("reload", self.handle_reload),
             TelegramMessageHandler(filters.LOCATION, self.handle_location),
             TelegramMessageHandler(filters.TEXT | filters.PHOTO, self.handle_message),
         ]
@@ -121,7 +122,8 @@ class BotHandlers:
             "• /config - 查看配置\n"
             "• /config time on|off - 时间显示\n"
             "• /config format 24h|12h - 时间格式\n"
-            "• /config location - 设置天气位置\n\n"
+            "• /config location - 设置天气位置\n"
+            "• /reload - 重新加载菜单\n\n"
             "**示例:**\n"
             "今天读了一本书 #读书\n"
             "[图片] 咖啡和阳光 #生活"
@@ -152,8 +154,7 @@ class BotHandlers:
                 f"/config time on - 开启时间显示\n"
                 f"/config time off - 关闭时间显示\n"
                 f"/config format 24h - 24小时制\n"
-                f"/config format 12h - 12小时制\n"
-                f"/config location - 设置天气位置"
+                f"/config format 12h - 12小时制"
             )
             return
 
@@ -209,6 +210,31 @@ class BotHandlers:
                 "/config format 24h|12h\n"
                 "/config location - 设置天气位置"
             )
+
+    async def handle_reload(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+        """处理 /reload 命令 - 重新加载命令菜单"""
+        user_id = update.effective_user.id
+        
+        if not self._check_permission(user_id):
+            return
+        
+        try:
+            from telegram import BotCommand
+            
+            # 重新设置命令菜单
+            commands = [
+                BotCommand("start", "开始使用日记机器人"),
+                BotCommand("help", "显示帮助文档"),
+                BotCommand("end", "立即合并今天的日记"),
+                BotCommand("config", "配置时间、格式、位置等"),
+                BotCommand("reload", "重新加载菜单（开发用）"),
+            ]
+            
+            await context.bot.set_my_commands(commands)
+            await update.message.reply_text("✅ 命令菜单已重新加载")
+            
+        except Exception as e:
+            await update.message.reply_text(f"❌ 重新加载失败: {e}")
 
     async def handle_location(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         """处理用户发送的位置消息"""
