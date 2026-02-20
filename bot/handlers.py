@@ -120,7 +120,8 @@ class BotHandlers:
             "**配置:**\n"
             "• /config - 查看配置\n"
             "• /config time on|off - 时间显示\n"
-            "• /config format 24h|12h - 时间格式\n\n"
+            "• /config format 24h|12h - 时间格式\n"
+            "• /config location - 设置天气位置\n\n"
             "**示例:**\n"
             "今天读了一本书 #读书\n"
             "[图片] 咖啡和阳光 #生活"
@@ -151,7 +152,8 @@ class BotHandlers:
                 f"/config time on - 开启时间显示\n"
                 f"/config time off - 关闭时间显示\n"
                 f"/config format 24h - 24小时制\n"
-                f"/config format 12h - 12小时制"
+                f"/config format 12h - 12小时制\n"
+                f"/config location - 设置天气位置"
             )
             return
 
