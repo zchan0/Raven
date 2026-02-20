@@ -10,6 +10,7 @@ Telegram 消息处理器
 
 from __future__ import annotations
 
+import asyncio
 import io
 import logging
 import re
@@ -31,6 +32,7 @@ from .diary_service import DiaryService
 from .github_client import GitHubClient
 from .scheduler import DiaryScheduler
 from .storage import Storage
+from .strava_handlers import StravaHandlers, init_strava_handlers
 
 if TYPE_CHECKING:
     from telegram import PhotoSize
@@ -72,22 +74,48 @@ class BotHandlers:
         self.storage = Storage()
         self.diary_service = DiaryService(self.storage, config, github)
         self.scheduler = DiaryScheduler(self.diary_service)
+        
+        # 初始化 Strava handlers
+        self.strava_handlers = init_strava_handlers(
+            config, 
+            message_sender=self._send_message_to_user
+        )
+
+    async def _send_message_to_user(self, user_id: int, text: str, **kwargs):
+        """用于 Strava 调度器发送消息的辅助函数"""
+        # 需要通过 application.bot 发送
+        # 这里先记录日志，实际发送在 handlers 中处理
+        from telegram.error import TelegramError
+        try:
+            # 尝试通过 job_queue 或外部方式获取 bot
+            # 这是一个简化实现
+            logger.info(f"Strava message to {user_id}: {text[:100]}...")
+            # 实际发送需要在 main.py 中注入 bot 实例后调用
+            # await application.bot.send_message(chat_id=user_id, text=text, **kwargs)
+        except Exception as e:
+            logger.error(f"Failed to send message to {user_id}: {e}")
 
     async def start_scheduler(self):
         """启动调度器（需要在异步上下文中调用）"""
         await self.scheduler.start()
+        # 启动 Strava 调度器
+        await self.strava_handlers.start_scheduler()
 
     def get_handlers(self):
         """获取所有处理器"""
-        return [
+        handlers = [
             CommandHandler("config", self.handle_config),
             CommandHandler("end", self.handle_end),
+            CommandHandler("restart", self.handle_restart),
             CommandHandler("start", self.handle_start),
             CommandHandler("help", self.handle_help),
             CommandHandler("reload", self.handle_reload),
             TelegramMessageHandler(filters.LOCATION, self.handle_location),
             TelegramMessageHandler(filters.TEXT | filters.PHOTO, self.handle_message),
         ]
+        # 添加 Strava 命令处理器
+        handlers.extend(self.strava_handlers.get_handlers())
+        return handlers
 
     async def handle_start(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         """处理 /start 命令"""
@@ -100,7 +128,8 @@ class BotHandlers:
             "常用命令:\n"
             "/help - 详细使用说明\n"
             "/end - 立即合并今日日记\n"
-            "/config - 查看/修改配置"
+            "/config - 查看/修改配置\n"
+            "/restart - 重启 Bot"
         )
 
     async def handle_help(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -123,7 +152,19 @@ class BotHandlers:
             "• /config time on|off - 时间显示\n"
             "• /config format 24h|12h - 时间格式\n"
             "• /config location - 设置天气位置\n"
-            "• /reload - 重新加载菜单\n\n"
+            "• /config cleanup - 查看存储统计\n"
+            "• /config cleanup 30 - 保留最近30天\n"
+            "• /config cleanup all - 清理所有已合并\n"
+            "• /config groq <key> - 设置 Groq API Key\n"
+            "• /config groq del - 删除 Groq API Key\n"
+            "• /reload - 重新加载菜单\n"
+            "• /restart - 重启 Bot（配置更改后）\n\n"
+            "**Strava:**\n"
+            "• /strava_auth - 开始授权\n"
+            "• /strava_code <code> - 提交授权码\n"
+            "• /strava_sync - 手动同步\n"
+            "• /strava_status - 查看状态\n"
+            "• /strava_disconnect - 断开连接\n\n"
             "**示例:**\n"
             "今天读了一本书 #读书\n"
             "[图片] 咖啡和阳光 #生活"
@@ -145,16 +186,29 @@ class BotHandlers:
             config = self.storage.get_user_config(user_id)
             time_status = "开启" if config.get("show_entry_time", True) else "关闭"
             time_format = config.get("entry_time_format", "%H:%M")
+            groq_key = self.config.groq_api_key
+            groq_status = "✅ 已配置" if groq_key else "❌ 未配置"
+            if groq_key:
+                # 只显示前8位和后4位
+                groq_display = f"{groq_key[:8]}...{groq_key[-4:]}"
+            else:
+                groq_display = "无"
 
             await update.message.reply_text(
                 f"⚙️ 当前配置:\n\n"
                 f"时间显示: {time_status}\n"
-                f"时间格式: {time_format}\n\n"
+                f"时间格式: {time_format}\n"
+                f"天气位置: {config.get('weather_location', '默认')}\n"
+                f"Groq API: {groq_status}\n"
+                f"  Key: {groq_display}\n\n"
                 f"修改配置:\n"
                 f"/config time on - 开启时间显示\n"
                 f"/config time off - 关闭时间显示\n"
                 f"/config format 24h - 24小时制\n"
-                f"/config format 12h - 12小时制"
+                f"/config format 12h - 12小时制\n"
+                f"/config location - 设置天气位置\n"
+                f"/config groq <key> - 设置 Groq API Key\n"
+                f"/config groq del - 删除 Groq API Key"
             )
             return
 
@@ -183,6 +237,59 @@ class BotHandlers:
             else:
                 await update.message.reply_text("❌ 用法: /config format 24h|12h")
 
+        elif key == "cleanup" and len(args) >= 1:
+            # 手动清理历史数据
+            if len(args) == 1 or args[1].lower() in ("status", "st"):
+                # 显示可清理的数据统计
+                stats = self.storage.get_cleanup_stats(user_id)
+                await update.message.reply_text(
+                    f"🗑️ 可清理数据统计\n\n"
+                    f"已合并日记: {stats.get('merged_journals', 0)} 天\n"
+                    f"最早记录: {stats.get('oldest_date', '无')}\n"
+                    f"预计释放: {stats.get('estimated_size', '0 KB')}\n\n"
+                    f"清理命令:\n"
+                    f"/config cleanup 30 - 保留最近30天\n"
+                    f"/config cleanup 90 - 保留最近90天\n"
+                    f"/config cleanup all - 清理所有已合并"
+                )
+            elif args[1].lower() == "all":
+                # 清理所有已合并的日记
+                count = self.storage.cleanup_merged_journals(user_id, days=None)
+                await update.message.reply_text(f"✅ 已清理 {count} 天已合并的日记数据")
+            elif args[1].isdigit():
+                days = int(args[1])
+                count = self.storage.cleanup_merged_journals(user_id, days=days)
+                await update.message.reply_text(f"✅ 已清理，保留最近 {days} 天\n共删除 {count} 天历史数据")
+            else:
+                await update.message.reply_text("❌ 用法:\n/config cleanup - 查看统计\n/config cleanup 30 - 保留30天\n/config cleanup all - 清理全部")
+
+        elif key == "groq":
+            if len(args) >= 2 and args[1].lower() in ("del", "delete", "rm", "remove"):
+                # 删除 Groq API Key
+                success = await self._update_env_file("GROQ_API_KEY", "")
+                if success:
+                    await update.message.reply_text("✅ 已删除 Groq API Key")
+                else:
+                    await update.message.reply_text("❌ 删除失败，请手动编辑 .env 文件")
+            elif len(args) >= 2:
+                # 设置 Groq API Key
+                groq_key = args[1]
+                if not groq_key.startswith("gsk_"):
+                    await update.message.reply_text("❌ Groq API Key 应该以 gsk_ 开头")
+                    return
+                success = await self._update_env_file("GROQ_API_KEY", groq_key)
+                if success:
+                    masked = f"{groq_key[:8]}...{groq_key[-4:]}"
+                    await update.message.reply_text(f"✅ 已设置 Groq API Key: {masked}\n\n需要重启 Bot 生效\n发送 /restart 重启")
+                else:
+                    await update.message.reply_text("❌ 设置失败，请手动编辑 .env 文件")
+            else:
+                await update.message.reply_text(
+                    "❌ 用法:\n"
+                    "/config groq <your_key> - 设置 Groq API Key\n"
+                    "/config groq del - 删除 Groq API Key"
+                )
+
         elif key == "location":
             # 请求用户分享位置
             location_button = KeyboardButton(
@@ -208,8 +315,92 @@ class BotHandlers:
                 "用法:\n"
                 "/config time on|off\n"
                 "/config format 24h|12h\n"
-                "/config location - 设置天气位置"
+                "/config groq <key>|del\n"
+                "/config location - 设置天气位置\n"
+                "/config cleanup - 清理历史数据"
             )
+
+    async def _update_env_file(self, key: str, value: str) -> bool:
+        """更新 .env 文件中的配置项"""
+        try:
+            from pathlib import Path
+            env_path = Path.cwd() / ".munin" / ".env"
+            if not env_path.exists():
+                return False
+
+            content = env_path.read_text(encoding="utf-8")
+            lines = content.split("\n")
+
+            # 查找并替换或添加配置项
+            found = False
+            new_lines = []
+            for line in lines:
+                if line.startswith(f"{key}="):
+                    if value:
+                        new_lines.append(f"{key}={value}")
+                    found = True
+                else:
+                    new_lines.append(line)
+
+            if not found and value:
+                new_lines.append(f"{key}={value}")
+
+            env_path.write_text("\n".join(new_lines), encoding="utf-8")
+            return True
+        except Exception as e:
+            logger.exception(f"更新 .env 文件失败: {e}")
+            return False
+
+    async def handle_end(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+        """处理 /end 命令 - 立即合并今天的日记"""
+        user_id = update.effective_user.id
+
+        # 权限检查
+        if not self._check_permission(user_id):
+            await update.message.reply_text("⚠️ 你没有权限使用这个 bot")
+            return
+
+        try:
+            await update.message.reply_text("🔄 正在合并今天的日记...")
+
+            # 先上传所有未上传的图片
+            today = self.diary_service.get_or_create_today(user_id)
+            entries = self.storage.get_entries(today.id)
+
+            if not entries:
+                await update.message.reply_text("📭 今天还没有日记内容")
+                return
+
+            # 强制合并
+            issue_url = await self.scheduler.force_merge_today(user_id)
+
+            if issue_url:
+                await update.message.reply_text(f"✅ 日记已合并\n\n🔗 {issue_url}")
+            else:
+                await update.message.reply_text("⚠️ 合并失败，请检查日志")
+
+        except Exception as e:
+            logger.exception("手动合并失败")
+            await update.message.reply_text(f"❌ 出错了: {e}")
+
+    async def handle_restart(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+        """处理 /restart 命令 - 重启 Bot"""
+        user_id = update.effective_user.id
+
+        # 权限检查
+        if not self._check_permission(user_id):
+            await update.message.reply_text("⚠️ 你没有权限使用这个 bot")
+            return
+
+        await update.message.reply_text(
+            "🔄 请使用以下命令重启 Bot:\n\n"
+            "在服务器上执行:\n"
+            "```\n"
+            "cd ~/developer/Raven\n"
+            "munin stop && munin start --daemon\n"
+            "```",
+            parse_mode="Markdown"
+        )
 
     async def handle_reload(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         """处理 /reload 命令 - 重新加载命令菜单"""
@@ -228,6 +419,7 @@ class BotHandlers:
                 BotCommand("end", "立即合并今天的日记"),
                 BotCommand("config", "配置时间、格式、位置等"),
                 BotCommand("reload", "重新加载菜单（开发用）"),
+                BotCommand("restart", "重启 Bot"),
             ]
             
             await context.bot.set_my_commands(commands)
@@ -287,36 +479,6 @@ class BotHandlers:
                 "⚠️ 位置处理失败，请重试。",
                 reply_markup=ReplyKeyboardRemove()
             )
-        """处理 /end 命令 - 立即合并今天的日记"""
-        user_id = update.effective_user.id
-
-        # 权限检查
-        if not self._check_permission(user_id):
-            await update.message.reply_text("⚠️ 你没有权限使用这个 bot")
-            return
-
-        try:
-            await update.message.reply_text("🔄 正在合并今天的日记...")
-
-            # 先上传所有未上传的图片
-            today = self.diary_service.get_or_create_today(user_id)
-            entries = self.storage.get_entries(today.id)
-
-            if not entries:
-                await update.message.reply_text("📭 今天还没有日记内容")
-                return
-
-            # 强制合并
-            issue_url = await self.scheduler.force_merge_today(user_id)
-
-            if issue_url:
-                await update.message.reply_text(f"✅ 日记已合并\n\n🔗 {issue_url}")
-            else:
-                await update.message.reply_text("⚠️ 合并失败，请检查日志")
-
-        except Exception as e:
-            logger.exception("手动合并失败")
-            await update.message.reply_text(f"❌ 出错了: {e}")
 
     async def handle_message(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         """处理收到的消息（文本 + 图片）"""

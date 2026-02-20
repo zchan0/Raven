@@ -30,7 +30,7 @@ BOT_COMMANDS = [
     BotCommand("help", "显示帮助文档"),
     BotCommand("end", "立即合并今天的日记"),
     BotCommand("config", "配置时间、格式、位置等"),
-    BotCommand("reload", "重新加载菜单（开发用）"),
+    BotCommand("reload", "重新加载菜单"),
 ]
 
 
