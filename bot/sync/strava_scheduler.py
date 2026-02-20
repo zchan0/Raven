@@ -211,8 +211,12 @@ class StravaSyncScheduler:
                 activity.get('start_date_local', datetime.now().isoformat())
             )
             
+            # 从 Strava 活动获取位置（坐标 -> 城市）
+            from location_service import get_city_from_strava_activity
+            location = get_city_from_strava_activity(activity) or "Shanghai"
+            
             # 基础标题：日期 周几 天气 节气/节日
-            base_title = get_diary_header(start_dt, location="Shanghai")
+            base_title = get_diary_header(start_dt, location=location)
             
             # 尝试生成诗意描述（低优先级，仅在没有节气时附加）
             if self.groq:

@@ -88,13 +88,16 @@ def get_weather(location: str = "Shanghai") -> Optional[WeatherInfo]:
 
 
 def get_diary_header(date: Optional[datetime] = None, 
-                     location: str = "Shanghai") -> str:
+                     location: str = "Shanghai",
+                     default_location: str = "Shanghai") -> str:
     """
     生成日记标题头
     
-    格式：YYYY年M月D日 周X 天气emoji 农历X月XX [节气/节日]
+    格式：YYYY年M月D日 周X 天气emoji 农历X月XX [节气/节日] [· 城市]
     
-    例如：2026年2月19日 周四 ☁️ 正月初三
+    例如：
+    - 默认城市：2026年2月20日 周四 🌤️ 正月廿三
+    - 其他城市：2026年2月20日 周四 🌤️ 正月廿三 · 杭州
     """
     if date is None:
         date = datetime.now()
@@ -116,7 +119,24 @@ def get_diary_header(date: Optional[datetime] = None,
     special_day = get_special_day(date)
     special_str = f" {special_day}" if special_day else ""
     
-    return f"{date_str} {weekday_str} {weather_str}{lunar_str}{special_str}"
+    # 城市标注（非默认城市时显示）
+    location_str = ""
+    if location != default_location:
+        # 将英文城市名转为中文显示
+        city_names = {
+            'Shanghai': '上海',
+            'Beijing': '北京',
+            'Hangzhou': '杭州',
+            'Shenzhen': '深圳',
+            'Chengdu': '成都',
+            'Guangzhou': '广州',
+            'Puer': '普洱',
+            'Hong Kong': '香港',
+        }
+        city_display = city_names.get(location, location)
+        location_str = f" · {city_display}"
+    
+    return f"{date_str} {weekday_str} {weather_str}{lunar_str}{special_str}{location_str}"
 
 
 def get_diary_title_with_poem(date: Optional[datetime] = None,
