@@ -431,13 +431,18 @@ class BotHandlers:
     async def handle_location(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         """处理用户发送的位置消息"""
         user_id = update.effective_user.id
+        logger.info(f"收到位置消息 from user {user_id}")
         
         if not self._check_permission(user_id):
+            logger.warning(f"用户 {user_id} 无权限")
             return
         
         location = update.message.location
         if not location:
+            logger.warning(f"消息中没有 location 数据")
             return
+        
+        logger.info(f"位置坐标: {location.latitude}, {location.longitude}")
         
         lat = location.latitude
         lng = location.longitude
@@ -483,6 +488,12 @@ class BotHandlers:
     async def handle_message(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         """处理收到的消息（文本 + 图片）"""
         user_id = update.effective_user.id
+        
+        # 调试日志：记录消息类型
+        has_location = update.message.location is not None
+        has_text = update.message.text is not None
+        has_photo = update.message.photo is not None
+        logger.info(f"handle_message 收到消息: user={user_id}, location={has_location}, text={has_text}, photo={has_photo}")
 
         # 权限检查
         if not self._check_permission(user_id):
